@@ -1,0 +1,6 @@
+/bin
+config.yaml
+service.env
+vendor-proto
+db.env
+pgbouncer.env

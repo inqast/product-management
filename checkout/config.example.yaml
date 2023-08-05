@@ -1,0 +1,12 @@
+httpPort: 8080
+grpcPort: 50051
+dbConString: postgres://checkout_user:password@checkout_db/checkout?sslmode=disable
+migrationDir: migrations
+loms:
+  addr: loms:50052
+products:
+  addr:  route256.pavl.uk:8082
+  token: token
+  rateLimit: 10
+  workersCount: 5
+name: checkout

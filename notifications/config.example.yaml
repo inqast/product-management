@@ -1,0 +1,14 @@
+httpPort: 8082
+grpcPort: 50053
+telegram:
+  token: token
+  chatID: 1111
+kafka:
+  brokers:
+    - kafka1:29091
+  topic: notifications
+retryCount: 5
+name: notifications
+dbConString: postgres://notifications_user:password@notification_db/notifications?sslmode=disable
+redisHost: notification_redis:6379
+redisPassword:

@@ -1,0 +1,9 @@
+httpPort: 8081
+grpcPort: 50052
+dbConString: postgres://loms_user:password@loms_db/loms?sslmode=disable
+migrationDir: migrations
+kafka:
+  brokers:
+    - kafka1:29091
+  topic: notifications
+name: loms

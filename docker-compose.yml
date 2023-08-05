@@ -1,0 +1,158 @@
+version: "3.1"
+services:
+  checkout:
+    image: checkout
+    build: ./checkout/
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+    env_file:
+      - ./checkout/service.env
+    depends_on:
+      - checkout_pgbouncer
+      - jaeger
+  checkout_db:
+    image: postgres:15
+    volumes:
+      - checkout_pg_data:/var/lib/postgresql/data
+    env_file:
+      - ./checkout/db.env
+  checkout_pgbouncer:
+    image: edoburu/pgbouncer
+    env_file:
+      - ./checkout/pgbouncer.env
+    ports:
+      - "5432:5432"
+    depends_on:
+      - checkout_db
+
+  loms:
+    image: loms
+    build: ./loms/
+    ports:
+      - "8081:8081"
+      - "50052:50052"
+    env_file:
+      - ./loms/service.env
+    depends_on:
+      kafka1:
+        condition: service_healthy
+      loms_pgbouncer:
+        condition: service_started
+      jaeger:
+        condition: service_started
+  loms_db:
+    image: postgres:15
+    volumes:
+      - loms_pg_data:/var/lib/postgresql/data
+    env_file:
+      - ./loms/db.env
+  loms_pgbouncer:
+    image: edoburu/pgbouncer
+    env_file:
+      - ./loms/pgbouncer.env
+    ports:
+      - "5433:5432"
+    depends_on:
+      - loms_db
+
+  notification:
+    image: notifications
+    build: ./notifications/
+    env_file:
+      - ./notifications/service.env
+    ports:
+      - "8082:8082"
+      - "50053:50053"
+    depends_on:
+      kafka1:
+        condition: service_healthy
+      notification_pgbouncer:
+        condition: service_started
+      notification_redis:
+        condition: service_started
+  notification_db:
+    image: postgres:15
+    volumes:
+      - notifications_pg_data:/var/lib/postgresql/data
+    env_file:
+      - ./notifications/db.env
+  notification_pgbouncer:
+    image: edoburu/pgbouncer
+    env_file:
+      - ./notifications/pgbouncer.env
+    ports:
+      - "5434:5432"
+    depends_on:
+      - notification_db
+  notification_redis:
+    image: redislabs/redismod
+    volumes:
+      - redis_data:/data
+      - ./notifications/redis.conf:/usr/local/etc/redis/redis.conf
+    restart: always
+    ports:
+      - "6379:6379"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: zookeeper:2888:3888
+    healthcheck:
+      test: echo stat | nc localhost 2181
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    ports:
+      - "2181:2181"
+      - "2888:2888"
+      - "3888:3888"
+  kafka1:
+    image: confluentinc/cp-kafka:latest
+    healthcheck:
+      test: nc -z localhost 9091 || exit -1
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - zookeeper
+    ports:
+      - "9091:9091"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_LISTNERS: LISTNER_INT://kafka1:29091,LISTENER_EXT://0.0.0.0:9091
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: LISTNER_INT://kafka1:29091,LISTENER_EXT://localhost:9091
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTNER_INT:PLAINTEXT,LISTENER_EXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: LISTNER_INT
+      ZOOKEEPER: zookeeper:2181
+  jaeger:
+    image: jaegertracing/all-in-one
+    ports:
+      - 5775:5775/udp
+      - 6831:6831/udp
+      - 6832:6832/udp
+      - 5778:5778
+      - 16686:16686 # web
+      - 14268:14268
+      - 9411:9411
+  prometheus:
+    image: prom/prometheus
+    depends_on:
+      - loms
+      - checkout
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+
+volumes:
+  checkout_pg_data:
+  loms_pg_data:
+  notifications_pg_data:
+  redis_data:

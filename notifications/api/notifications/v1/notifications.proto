@@ -1,0 +1,31 @@
+syntax = 'proto3';
+
+package notifications;
+
+option go_package = "route256/notifications/pkg/notifications";
+
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+
+
+service Notifications {
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse) {
+    option (google.api.http) = {
+      post: "/v1/history"
+      body: "*"
+    };
+  }
+}
+
+message GetHistoryRequest {
+  int64 user = 1 [(validate.rules).int64.gte = 1];
+}
+
+message GetHistoryResponse {
+  repeated Notification notifications = 1;
+}
+
+message Notification {
+  uint32 orderId = 1;
+  string Status = 2;
+}
